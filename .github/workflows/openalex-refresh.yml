@@ -1,0 +1,95 @@
+name: OpenAlex → CSV → OneDrive (→ Power BI)
+
+on:
+  schedule:
+    - cron: "15 3 * * *"
+  workflow_dispatch:
+    
+permissions:
+  contents: read
+
+concurrency:
+  group: openalex-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    env:
+      CSV_FILENAME: counts_per_person_year.csv
+      ONEDRIVE_DEST_DIR: ${{ secrets.ONEDRIVE_DEST_DIR || '/Research_Output' }}
+      RCLONE_REMOTE_NAME: odrive
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run OpenAlex pipeline
+        run: |
+          python ./scripts/openalex_to_csv.py --out $CSV_FILENAME
+          # Ensure your script exits non-zero on failure.
+
+      - name: Install rclone
+        uses: rclone/rclone-action@v2
+        with:
+          version: "current"
+
+      - name: Configure rclone remote (OneDrive Personal - token only)
+        shell: bash
+        run: |
+          mkdir -p ~/.config/rclone
+          cat > ~/.config/rclone/rclone.conf <<'EOF'
+          [${{ env.RCLONE_REMOTE_NAME }}]
+          type = onedrive
+          token = ${{ secrets.RCLONE_ONEDRIVE_TOKEN_JSON }}
+          drive_id = ${{ secrets.RCLONE_ONEDRIVE_DRIVE_ID }}
+          drive_type = personal
+          EOF
+
+          echo "rclone config written:"
+          sed 's/"access_token":".*"/"access_token":"***REDACTED***"/' ~/.config/rclone/rclone.conf
+
+      - name: Upload CSV to OneDrive/SharePoint
+        run: |
+          rclone mkdir "${{ env.RCLONE_REMOTE_NAME }}:${ONEDRIVE_DEST_DIR}" || true
+          # atomic upload: write to temp then move
+          rclone copy "$CSV_FILENAME" "${{ env.RCLONE_REMOTE_NAME }}:${ONEDRIVE_DEST_DIR}/" --checksum --update
+          rclone ls "${{ env.RCLONE_REMOTE_NAME }}:${ONEDRIVE_DEST_DIR}"
+
+      # ===== Optional: trigger Power BI dataset refresh =====
+      # - name: Get AAD token for Power BI
+      #   id: token
+      #   if: ${{ secrets.PBI_TENANT_ID && secrets.PBI_CLIENT_ID && secrets.PBI_CLIENT_SECRET && secrets.PBI_WORKSPACE_ID && secrets.PBI_DATASET_ID }}
+      #   run: |
+      #     TOKEN=$(curl -sS -X POST "https://login.microsoftonline.com/${{ secrets.PBI_TENANT_ID }}/oauth2/v2.0/token" \
+      #       -H "Content-Type: application/x-www-form-urlencoded" \
+      #       -d "client_id=${{ secrets.PBI_CLIENT_ID }}" \
+      #       -d "client_secret=${{ secrets.PBI_CLIENT_SECRET }}" \
+      #       -d "grant_type=client_credentials" \
+      #       -d "scope=https://analysis.windows.net/powerbi/api/.default" \
+      #       | jq -r '.access_token')
+      #     if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
+      #       echo "Failed to acquire token"; exit 1
+      #     fi
+      #     echo "token=$TOKEN" >> $GITHUB_OUTPUT
+
+      # - name: Trigger dataset refresh
+      #   if: steps.token.outputs.token
+      #   run: |
+      #     curl -sS -X POST \
+      #       -H "Authorization: Bearer ${{ steps.token.outputs.token }}" \
+      #       -H "Content-Type: application/json" \
+      #       "https://api.powerbi.com/v1.0/myorg/groups/${{ secrets.PBI_WORKSPACE_ID }}/datasets/${{ secrets.PBI_DATASET_ID }}/refreshes" \
+      #       -d '{"notifyOption":"NoNotification"}' | jq .
