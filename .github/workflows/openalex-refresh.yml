@@ -41,25 +41,16 @@ jobs:
           python ./scripts/openalex_to_csv.py --out $CSV_FILENAME
           # Ensure your script exits non-zero on failure.
 
-      - name: Install rclone
-        uses: rclone/rclone-action@v2
-        with:
-          version: "current"
-
-      - name: Configure rclone remote (OneDrive Personal - token only)
-        shell: bash
-        run: |
-          mkdir -p ~/.config/rclone
-          cat > ~/.config/rclone/rclone.conf <<'EOF'
-          [${{ env.RCLONE_REMOTE_NAME }}]
-          type = onedrive
-          token = ${{ secrets.RCLONE_ONEDRIVE_TOKEN_JSON }}
-          drive_id = ${{ secrets.RCLONE_ONEDRIVE_DRIVE_ID }}
-          drive_type = personal
-          EOF
-
-          echo "rclone config written:"
-          sed 's/"access_token":".*"/"access_token":"***REDACTED***"/' ~/.config/rclone/rclone.conf
+      - name: Setup rclone (OneDeive Personal)
+        uses: AnimMouse/setup-rclone@v1
+        with: 
+          rclone_config: |
+            [${{ env.RCLONE_REMOTE_NAME }}]
+            type = onedrive
+            token = ${{ secrets.RCLONE_ONEDRIVE_TOKEN_JSON }}
+            drive_id = ${{ secrets.RCLONE_ONEDRIVE_DRIVE_ID }}
+            drive_type = personal
+          disable_base64: true
 
       - name: Upload CSV to OneDrive/SharePoint
         run: |
