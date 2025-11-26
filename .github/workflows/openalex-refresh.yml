@@ -38,7 +38,7 @@ jobs:
 
       - name: Run OpenAlex pipeline
         run: |
-          python ./scripts/openalex_to_csv.py --out $CSV_FILENAME
+          python ./scripts/conf_jour_outputs.py --out $CSV_FILENAME
           # Ensure your script exits non-zero on failure.
 
       - name: Setup rclone (OneDeive Personal)
