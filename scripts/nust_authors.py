@@ -1,6 +1,5 @@
 import os
 import time
-import json
 import sqlite3
 import requests as r
 from typing import Dict, Any, Iterable, Optional
@@ -10,7 +9,7 @@ from typing import Dict, Any, Iterable, Optional
 # ----------------------
 NUST_INST_ID = os.getenv("NUST_INST_ID", "I101993903")
 YEAR = int(os.getenv("YEAR", "2025"))
-DB_PATH = os.getenv("DB_PATH", "../nust_research_authors.sqlite3")
+DB_PATH = os.getenv("DB_PATH", "../db_csv/nust_authors/nust_research_authors.sqlite3")
 BASE = "https://api.openalex.org"
 AUTHORS_URL = f"{BASE}/authors"
 WORKS_URL = f"{BASE}/works"
@@ -18,9 +17,9 @@ UA = os.getenv("OPENALEX_UA", "NUST-ORCID-Collector/1.0 (contact: you@yourdomain
 HEADERS = {"User-Agent": UA, "Accept": "application/json"}
 
 PER_PAGE = 200
-SLEEP_BETWEEN = 0.2     
+SLEEP_BETWEEN = 0.2      # polite pacing for paging
 RETRY_MAX = 5
-RETRY_BACKOFF = 1.6      
+RETRY_BACKOFF = 1.6      # exponential backoff factor
 
 TOPICS_URL = f"{BASE}/topics"
 _topic_cache: dict[str, dict] = {}
@@ -349,6 +348,7 @@ def main():
     link_rows = 0
     topic_rows = 0
 
+    # We only need author IDs for looping
     cur.execute("SELECT author_id FROM authors;")
     author_ids = [row[0] for row in cur.fetchall()]
 

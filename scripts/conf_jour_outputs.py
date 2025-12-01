@@ -14,7 +14,7 @@ import argparse
 NUST_INST_ID = os.getenv("NUST_INST_ID", "I101993903")  # NUST OpenAlex institution id
 YEAR_START = int(os.getenv("YEAR_START", "2023"))
 YEAR_END   = int(os.getenv("YEAR_END",   "2025"))
-DB_PATH    = os.getenv("DB_PATH", "db_csv/nust_research.sqlite3")
+DB_PATH    = os.getenv("DB_PATH", "../db_csv/nust_conf_jour_output/nust_research.sqlite3")
 
 BASE = "https://api.openalex.org"
 AUTHORS_URL = f"{BASE}/authors"
@@ -35,12 +35,12 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--out",
-        default="db_csv/counts_per_person_year.csv",
+        default="../db_csv/nust_conf_jour_output/counts_per_person_year.csv",
         help="Path to output CSV (relative to repo root).",
     )
     parser.add_argument(
         "--db-path",
-        default="db_csv/nust_research.sqlite3",
+        default="../db_csv/nust_conf_jour_output/nust_research.sqlite3",
         help="Path to SQLite DB file.",
     )
     return parser.parse_args()
