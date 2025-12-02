@@ -46,6 +46,8 @@ Each script reads `DB_PATH` independently; set it to the correct path for the co
 
 ## Running the collectors
 
+__NB: conf_jour_outputs.py file may take 10-15 minutes to run, considering the amount of data being handled.__
+
 ### Conference and journal outputs per person per year
 
 1. Activate the virtual environment and ensure the environment variables above are set.
